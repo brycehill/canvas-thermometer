@@ -1,5 +1,5 @@
 {
-  "name": "Thermometer",
+  "name": "canvas-thermometer",
   "version": "0.0.0",
   "description": "A thermometer graph built with canvas",
   "main": "dist/Thermometer.min.js",
