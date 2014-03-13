@@ -1,0 +1,16 @@
+{
+  "name": "Thermometer",
+  "version": "0.0.0",
+  "description": "A thermometer graph built with canvas",
+  "main": "dist/Thermometer.min.js",
+  "devDependencies": {
+    "gulp-rename": "~1.2.0",
+    "gulp-uglify": "~0.2.1",
+    "gulp": "~3.5.5"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Bryce Hill",
+  "license": "BSD-2-Clause"
+}

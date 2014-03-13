@@ -1,0 +1,18 @@
+body {
+    font-family: 'Helvetica';
+    font-size: 30px;
+    font-weight: lighter;
+    background-color: #fdf6de;
+}
+
+canvas {
+    border: 1px dotted black;
+}
+
+.controls {
+    margin: 10px auto;
+}
+
+.controls, .control, input {
+    font-size: 24px;
+}
