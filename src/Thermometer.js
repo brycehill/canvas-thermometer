@@ -9,7 +9,6 @@ function Thermometer(canvas, opts) {
     // TODO: Set more default options
     this.opts = opts || {}
     this.ctx = canvas.getContext('2d')
-    this.ctx.font = this.opts.font || '200 42px Helvetica'
     this.ctx.strokeStyle = '#666666'
     this.width = this.opts.width || 100
     this.ctx.lineWidth = this.opts.lineWidth || 5;
@@ -50,8 +49,7 @@ Thermometer.prototype.empty = function() {
 }
 
 Thermometer.prototype.erase = function() {
-    console.log('erasing')
-    this.ctx.clearRect(0, 0, this.pos.left, this.pos.bottom)
+    this.ctx.clearRect(0, 0, this.pos.left - 5, this.pos.bottom)
 }
 
 Thermometer.prototype.set = function(prop, value) {
@@ -60,35 +58,13 @@ Thermometer.prototype.set = function(prop, value) {
 }
 
 Thermometer.prototype.draw = function() {
+    this.empty()
     this.drawOutline()
     if (this.data != null) this.fill()
 }
 
 Thermometer.prototype.hasMetGoal = function() {
     return this.data > this.goal
-}
-
-Thermometer.prototype.fill = function() {
-    var self = this,
-        fillLine = getFillLine(),
-        fillY = this.abs.bottom - fillLine,
-        fillHeight = this.abs.bottom - fillY
-
-    this.empty()
-    this.clip()
-    if (!this.data) return
-
-    this.ctx.fillStyle = 'rgba(255, 70, 20, 0.7)'
-    this.ctx.fillRect(0 , fillY, this.canvasWidth, fillHeight)
-    this.oldFillHeight = fillHeight
-    this.oldFillY = fillY
-
-    this.labelData()
-    this.drawTicks()
-
-    function getFillLine() {
-        return (self.abs.bottom - self.abs.top) * (self.data / self.goal)
-    }
 }
 
 Thermometer.prototype.drawOutline = function() {
@@ -101,17 +77,39 @@ Thermometer.prototype.drawOutline = function() {
     this.ctx.arc(this.center, this.canvasHeight - this.bigRadius - this.ctx.lineWidth - this.padding.bottom, this.width, getRadians(300), getRadians(240))
     this.ctx.stroke()
     this.drawTicks()
-    if (this.goal != null) this.labelGoal()
-
-    
+    if (this.goal != null) this.label('Goal: ' + this.goal, this.labelGoal)
 
     function getRadians(degree) {
         return degree * (Math.PI / 180)
     }
 }
 
-Thermometer.prototype.clip = function() {
+Thermometer.prototype.fill = function() {
+    var self = this,
+        fillLine = getFillLine(),
+        fillY = this.abs.bottom - fillLine,
+        fillHeight = this.abs.bottom - fillY
+
+    this.empty()
     this.ctx.save()
+    this.clip()
+    if (!this.data) return
+
+    this.ctx.fillStyle = 'rgba(255, 70, 20, 0.7)'
+    this.ctx.fillRect(0 , fillY, this.canvasWidth, fillHeight)
+    this.oldFillHeight = fillHeight
+    this.oldFillY = fillY
+
+    this.label(this.data, this.labelData)
+    this.drawTicks()
+
+    function getFillLine() {
+        return (self.abs.bottom - self.abs.top) * (self.data / self.goal)
+    }
+}
+
+
+Thermometer.prototype.clip = function() {
     this.ctx.beginPath()
     this.ctx.moveTo(this.pos.left + 5, this.pos.bottom)
     this.ctx.lineTo(this.pos.left + 5, this.pos.top)
@@ -125,48 +123,71 @@ Thermometer.prototype.clip = function() {
     }
 }
 
-Thermometer.prototype.label = function(text) {
-    if (!text) return
-    tm = this.ctx.measureText(text)
-}
-
-Thermometer.prototype.labelGoal = function() {
-    var text = 'Goal: ' + this.goal,
-        tm = this.ctx.measureText(text),
-        fontHeight
-
+/**
+ * Draw a label onto the canvas
+ * @param  String   text The text to draw onto the canvas
+ * @param  Function fn   A function that sets the desired path, styles, etc for the text
+ */
+Thermometer.prototype.label = function(text, fn) {
     if (!text) return
 
     this.ctx.beginPath()
+    fn.call(this, text)
+    this.ctx.closePath()
+}
+
+Thermometer.prototype.labelGoal = function(text) {
+    var fontHeight = parseInt(this.ctx.font, 10),
+        tm = this.ctx.measureText(text),
+        x = tm.width + 5,
+        y = this.abs.top + (fontHeight / 2)
+
     this.ctx.fillStyle = '#333'
-    // this.ctx.textAlign = 'center'
-    fontHeight = parseInt(this.ctx.font, 10)
-    // this.ctx.textBaseline = 'middle'
+    this.ctx.textAlign = 'left'
+    this.ctx.textBaseline = 'bottom'
+    this.ctx.font = '200 30px Helvetica'
+
     if (this.hasMetGoal()) {
         // Data is at the top of the thermometer.
         this.adjustGoalLabel(text)
     } else {
         // Goal is at the top of the thermometer.
         this.ctx.fillText(text, 0, this.abs.top + fontHeight, this.pos.left)
-        this.ctx.moveTo(this.center, this.abs.top)
-        this.ctx.lineWidth = 2
+        this.ctx.moveTo(this.pos.left, y)
         // Add 1 for padding.
-        // this.ctx.lineTo(tm.width, this.abs.top + fontHeight)
+        this.ctx.lineTo(x, y)
         this.ctx.stroke()
+        this.ctx.arc(x, y, 3, 0, 360 * (Math.PI / 180))
+        this.ctx.fill()
     }
 }
 
-Thermometer.prototype.label = function() {
-      // 
+Thermometer.prototype.adjustGoalLabel = function(text) {
+    var self = this,
+        ratio = getGoalLine(),
+        fontHeight = parseInt(this.ctx.font, 10),
+        y = this.abs.bottom - ratio,
+        tm = this.ctx.measureText(text)
+
+    // Restore to before the region was clipped.
+    this.ctx.restore()
+    this.erase()
+    // this.ctx.textBaseline = 'middle'
+    this.ctx.fillText(text, 0, y, this.pos.left)
+    this.ctx.moveTo(this.pos.left, y - fontHeight / 2)
+    // Add 1 for padding.
+    this.ctx.lineTo(tm.width + 5, y - fontHeight / 2)
+    this.ctx.stroke()
+    this.ctx.arc(tm.width + 5, y - fontHeight / 2, 3, 0, 360 * (Math.PI / 180))
+    this.ctx.fill()
+
+    function getGoalLine() {
+        return (self.abs.bottom - self.abs.top) * (self.goal / self.data)
+    }
 }
 
-Thermometer.prototype.labelData = function() {
-    var text = this.data, tm
-
-    if (!text) return
-    tm = this.ctx.measureText(text)
-
-    this.ctx.beginPath()
+Thermometer.prototype.labelData = function(text) {
+    this.ctx.font = '200 42px Helvetica'
     this.ctx.shadowColor = '#444'
     this.ctx.shadowOffsetX = 2
     this.ctx.shadowOffsetY = 2
@@ -175,7 +196,6 @@ Thermometer.prototype.labelData = function() {
     this.ctx.fillStyle = '#fff'
     this.ctx.textAlign = 'center'
     this.ctx.fillText(text, this.center, this.canvasHeight - this.bigRadius - this.ctx.lineWidth - this.padding.bottom - 5 + 2)
-    this.ctx.closePath()
 }
 
 Thermometer.prototype.drawTicks = function() {
@@ -195,25 +215,3 @@ Thermometer.prototype.drawTicks = function() {
         this.ctx.stroke()
     }
 }
-
-Thermometer.prototype.adjustGoalLabel = function(text) {
-    // (this.abs.bottom - this.abs.top) * (self.data / self.goal)
-    var ratio = (this.data / this.goal),
-        fontHeight = parseInt(this.ctx.font, 10)
-
-    this.ctx.restore()
-    // this.erase()
-    this.adjustingGoal = true
-
-console.log('adjusting')
-var y = (this.abs.top*ratio) + fontHeight + 50
-console.log(y)
-    this.ctx.fillText(text, 0, y, this.pos.left)
-    // this.ctx.moveTo(this.center, this.abs.top)
-    this.ctx.lineWidth = 2
-    // Add 1 for padding.
-    // this.ctx.lineTo(tm.width, this.abs.top + fontHeight)
-    this.ctx.stroke()
-    this.adjustingGoal = false
-}
-
